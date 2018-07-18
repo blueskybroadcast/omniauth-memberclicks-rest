@@ -1,5 +1,8 @@
 require 'bundler/setup'
 require 'omniauth-memberclicks-rest'
+require 'webmock/rspec'
+
+WebMock.disable_net_connect!
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
