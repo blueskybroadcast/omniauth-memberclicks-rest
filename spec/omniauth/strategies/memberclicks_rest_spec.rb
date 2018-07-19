@@ -15,6 +15,10 @@ RSpec.describe OmniAuth::Strategies::MemberclicksREST do
         it { expect(subject.options.client_options.authorize_url).to eq('/oauth/v1/authorize') }
       end
 
+      describe '#custom_field_keys' do
+        it { expect(subject.options.client_options.custom_field_keys).to eq([]) }
+      end
+
       describe '#site' do
         it { expect(subject.options.client_options.site).to eq('MUST_BE_PROVIDED') }
       end
@@ -41,6 +45,7 @@ RSpec.describe OmniAuth::Strategies::MemberclicksREST do
     before do
       allow(subject).to receive(:access_token).and_return(access_token)
       subject.options.client_options[:site] = 'https://org_id.memberclicks.net'
+      subject.options.client_options[:custom_field_keys] = ['[Address | Primary | City]', '[Address | Primary | Zip]']
       stub_request(:get, 'https://org_id.memberclicks.net/api/v1/profile/me')
         .with(headers: { 'Accept' => 'application/json', 'Authorization' => "Bearer #{parsed_token_info['access_token']}" })
         .to_return(status: 200, body: user_info, headers: {})
@@ -85,6 +90,19 @@ RSpec.describe OmniAuth::Strategies::MemberclicksREST do
     context 'member_type' do
       it 'returns member_type' do
         expect(subject.info[:member_type]).to eq 'Associate'
+      end
+    end
+
+    context 'custom_fields_data' do
+      let(:fields_data) do
+        {
+          '[address | primary | city]' => 'Clearwater',
+          '[address | primary | zip]' => '33758'
+        }
+      end
+
+      it 'returns custom_fields_data' do
+        expect(subject.info[:custom_fields_data]).to eq fields_data
       end
     end
   end

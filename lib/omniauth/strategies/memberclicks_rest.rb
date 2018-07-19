@@ -7,6 +7,7 @@ module OmniAuth
 
       option :client_options, {
         authorize_url: '/oauth/v1/authorize',
+        custom_field_keys: [],
         site: 'MUST_BE_PROVIDED',
         token_url: '/oauth/v1/token',
         user_info_url: '/api/v1/profile/me'
@@ -70,6 +71,15 @@ module OmniAuth
         end
       end
 
+      def custom_fields_data(parsed_response)
+        custom_field_keys = options.client_options.custom_field_keys.to_a
+
+        parsed_response.each_with_object({}) do |(key, value), memo|
+          next unless custom_field_keys.include?(key)
+          memo[key.downcase] = value
+        end
+      end
+
       def prepare_access_token(raw_body)
         response_body = MultiJson.load(raw_body)
 
@@ -91,7 +101,8 @@ module OmniAuth
           username: parsed_body['[Username]'],
           uid: parsed_body['[Profile ID]'].to_s,
           member_status: parsed_body['[Member Status]'],
-          member_type: parsed_body['[Member Type]']
+          member_type: parsed_body['[Member Type]'],
+          custom_fields_data: custom_fields_data(parsed_body)
         }
       end
 
