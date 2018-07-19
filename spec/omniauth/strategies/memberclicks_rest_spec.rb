@@ -1,9 +1,15 @@
 RSpec.describe OmniAuth::Strategies::MemberclicksREST do
+  let(:log) { double }
   let(:token_info) { response_fixture('token') }
   let(:user_info) { response_fixture('me') }
   let(:parsed_token_info) { MultiJson.load(token_info) }
 
   subject { described_class.new('app_id', 'secret') }
+
+  before do
+    allow(@app_event).to receive(:logs).and_return(log)
+    allow(log).to receive(:create).and_return(true)
+  end
 
   describe '#options' do
     describe '#name' do

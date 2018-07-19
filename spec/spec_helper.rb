@@ -15,3 +15,5 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 end
+
+RSpec::Mocks.configuration.allow_message_expectations_on_nil = true

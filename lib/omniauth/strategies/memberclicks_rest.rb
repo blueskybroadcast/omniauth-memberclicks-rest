@@ -23,6 +23,11 @@ module OmniAuth
 
       def callback_phase
         return fail!(:invalid_credentials) unless request.params['code']
+        account = Account.find_by(slug: account_slug)
+        @app_event = account.app_events.create(activity_type: 'sso')
+
+        request_log = "[MemberclicksREST] Authenticate Request:\nPOST #{options.client_options.token_url}"
+        @app_event.logs.create(level: 'info', text: request_log)
 
         response = connection.post(options.client_options.token_url) do |request|
           request.headers['Authorization'] = auth_header
@@ -30,13 +35,19 @@ module OmniAuth
           request.body = auth_body
         end
 
+        response_log = "[MemberclicksREST] Authenticate Response (code: #{response.status}):\n#{response.inspect}"
+
         if response.success?
+          @app_event.logs.create(level: 'info', text: response_log)
           prepare_access_token(response.body)
           self.env['omniauth.origin'] = '/' + account_slug
           self.env['omniauth.auth'] = auth_hash
 
+          finalize_app_event
           call_app!
         else
+          @app_event.logs.create(level: 'error', text: response_log)
+          @app_event.fail!
           fail!(:invalid_credentials)
         end
       end
@@ -80,6 +91,19 @@ module OmniAuth
         end
       end
 
+      def finalize_app_event
+        app_event_data = {
+          user_info: {
+            uid: uid,
+            first_name: info[:first_name],
+            last_name: info[:last_name],
+            email: info[:email]
+          }
+        }
+
+        @app_event.update(raw_data: app_event_data)
+      end
+
       def prepare_access_token(raw_body)
         response_body = MultiJson.load(raw_body)
 
@@ -109,11 +133,21 @@ module OmniAuth
       def raw_user_info
         return @raw_user_info if defined?(@raw_user_info)
 
+        request_log = "[MemberclicksREST] User profile Request:\nGET #{user_info_url}"
+        @app_event.logs.create(level: 'info', text: request_log)
         response = connection.get(user_info_url) do |request|
           request.headers['Authorization'] = "Bearer #{access_token[:token]}"
         end
 
-        return fail!(:invalid_credentials) unless response.success?
+        response_log = "[MemberclicksREST] User profile Response (code: #{response.status}):\n#{response.inspect}"
+
+        if response.success?
+          @app_event.logs.create(level: 'info', text: response_log)
+        else
+          @app_event.logs.create(level: 'error', text: response_log)
+          @app_event.fail!
+          return fail!(:invalid_credentials)
+        end
 
         @raw_user_info ||= prepare_user_info(response.body)
       end
